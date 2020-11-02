@@ -78,6 +78,10 @@ def build_packet():
     return packet
 
 def get_route(hostname):
+    destAddr = gethostbyname(hostname)
+    print("Tracing route to " + hostname + " [" + destAddr + "]")
+    print("over a maximum of " + str(MAX_HOPS) + " hops:\n")
+
     timeLeft = TIMEOUT
     tracelist1 = []  # This is your list to use when iterating through each trace
     tracelist2 = []  # This is your list to contain all traces
@@ -86,7 +90,7 @@ def get_route(hostname):
         tracelist1.clear()
         tracelist1.append(str(ttl))
         for tries in range(TRIES):
-            destAddr = gethostbyname(hostname)
+
 
             #Fill in start
             # Make a raw socket named mySocket
@@ -140,36 +144,43 @@ def get_route(hostname):
                     b = str(recvPacket[13])
                     c = str(recvPacket[14])
                     d = str(recvPacket[15])
-                    destIPAddress = a + '.' + b + '.' + c + '.' + d
-                    destHostname = gethostbyaddr(destIPAddress)[0]
+                    routerIPAddress = a + '.' + b + '.' + c + '.' + d
+                    routerHostname = gethostbyaddr(routerIPAddress)[0]
                     #Fill in end
                 except herror:   #if the host does not provide a hostname
                     #Fill in start
-                    destHostname = "hostname not returnable"
+                    routerHostname = "hostname not returnable"
                     #Fill in end
 
                 if types == 11:
                     bytes = struct.calcsize("d")
-                    timeSent = struct.unpack("d", recvPacket[28:28 +
-                    bytes])[0]
+                    try:
+                        timeSent = struct.unpack("d", recvPacket[56:56 + bytes])[0]
+                        totalTime = str(round((timeReceived - timeSent) * 1000)) + "ms"
+                    except:
+                        totalTime = '*'
+
+
                     #Fill in start
                     #You should add your responses to your lists here
-                    tracelist1.append(str(round((timeReceived - timeSent) * 1000)) + "ms")
-                    tracelist1.append(destIPAddress)
-                    tracelist1.append(destHostname)
+                    tracelist1.append(totalTime)
+                    tracelist1.append(routerIPAddress)
+                    tracelist1.append(routerHostname)
+                    # print("type 11; Sent: " + str(timeSent) + "; Recvd: " + str(timeReceived))
                     print(tracelist1)
                     copyOfList1 = tracelist1[:]
-                    tracelist2.append([copyOfList1])
+                    tracelist2.append(copyOfList1)
                     #Fill in end
                 elif types == 3:
                     bytes = struct.calcsize("d")
-                    timeSent = struct.unpack("d", recvPacket[28:28 + bytes])[0]
+                    timeSent = struct.unpack("d", recvPacket[56:56 + bytes])[0]
                     #Fill in start
                     #You should add your responses to your lists here
                     tracelist1.append(str(round((timeReceived - timeSent) * 1000)) + "ms")
-                    tracelist1.append(destIPAddress)
-                    tracelist1.append(destHostname)
+                    tracelist1.append(routerIPAddress)
+                    tracelist1.append(routerHostname)
                     tracelist1.append("destination unreachable")
+                    # print("type 3; Sent: " + str(timeSent) + "; Recvd: " + str(timeReceived))
                     print(tracelist1)
                     copyOfList1 = tracelist1[:]
                     tracelist2.append([copyOfList1])
@@ -180,23 +191,34 @@ def get_route(hostname):
                     #Fill in start
                     #You should add your responses to your lists here and return your list if your destination IP is met
                     tracelist1.append(str(round((timeReceived - timeSent) * 1000)) + "ms")
-                    tracelist1.append(destIPAddress)
-                    tracelist1.append(destHostname)
+                    tracelist1.append(routerIPAddress)
+                    #if(routerIPAddress == destAddr):
+                    #    tracelist1.append(hostname)
+                    #else:
+                    #    tracelist1.append(routerHostname)
+                    tracelist1.append(routerHostname)
+                    # print("type 0; Sent: " + str(timeSent) + "; Recvd: " + str(timeReceived))
                     print(tracelist1)
                     copyOfList1 = tracelist1[:]
                     tracelist2.append([copyOfList1])
 
-                    if destHostname == hostname:
+                    if (routerHostname == hostname) or (routerIPAddress == destAddr):
                         print("Destination reached in " + str(ttl) + " hops.")
+
+                        print("")
+                        print(tracelist2)
                         return tracelist2
                     #Fill in end
                 else:
                     #Fill in start
                     #If there is an exception/error to your if statements, you should append that to your list here
+                    bytes = struct.calcsize("d")
+                    timeSent = struct.unpack("d", recvPacket[28:28 + bytes])[0]
                     tracelist1.append(str(round((timeReceived - timeSent) * 1000)) + "ms")
-                    tracelist1.append(destIPAddress)
-                    tracelist1.append(destHostname)
+                    tracelist1.append(routerIPAddress)
+                    tracelist1.append(routerHostname)
                     tracelist1.append("unusual icmp type")
+                    # print("type ?; Sent: " + str(timeSent) + "; Recvd: " + str(timeReceived))
                     print(tracelist1)
                     copyOfList1 = tracelist1[:]
                     tracelist2.append([copyOfList1])
@@ -206,8 +228,10 @@ def get_route(hostname):
                 mySocket.close()
 
     print("Unable to reach destination within " + str(MAX_HOPS) + " hops.")
+    print("")
+    print(tracelist2)
     return tracelist2
 
 
 if __name__ == '__main__':
-    get_route("172.217.12.174")
+    get_route("bing.com")
